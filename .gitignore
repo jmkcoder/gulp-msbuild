@@ -1,5 +1,7 @@
-.DS_Store
 node_modules/
-temp/
-coverage
-.idea
+dist/
+coverage/
+package-lock.json
+*.log
+.DS_Store
+*.tgz
