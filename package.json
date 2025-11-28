@@ -2,8 +2,7 @@
   "name": "gulp-msbuild",
   "version": "1.0.1",
   "description": "msbuild plugin for gulp. Inspired by grunt-msbuild.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "index.js",
   "keywords": [
     "gulpplugin",
     "msbuild",
