@@ -29,7 +29,10 @@
         "url": "https://github.com/jmkcoder"
     }
   ],
-  "repository": "fluffynuts/gulp-msbuild",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jmkcoder/gulp-msbuild.git"
+  },
   "scripts": {
         "build": "tsc",
         "start": "ts-node src/index.ts",
