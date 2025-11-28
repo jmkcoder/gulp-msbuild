@@ -3,7 +3,7 @@ name: Build
 on:
   workflow_call:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
   build:
