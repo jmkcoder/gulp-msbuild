@@ -5,8 +5,8 @@ on:
     types: [closed]
 
 permissions:
-  id-token: write # Required for npm OIDC
-  contents: write  # This grants write permissions to the token
+  id-token: write
+  contents: write
 
 jobs:
   build:
