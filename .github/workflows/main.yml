@@ -5,6 +5,7 @@ on:
     types: [closed]
 
 permissions:
+  id-token: write # Required for npm OIDC
   contents: write  # This grants write permissions to the token
 
 jobs:
@@ -78,10 +79,6 @@ jobs:
         asset_content_type: application/zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Set up .npmrc
-      if: env.skip == 'false'
-      run: bash .github/scripts/setup-npmrc.sh "${{ secrets.NPM_PUBLISH_KEY }}"
     
     - name: Create temp_package
       if: env.skip == 'false'
