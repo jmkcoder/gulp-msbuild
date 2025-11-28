@@ -30,9 +30,9 @@
     }
   ],
   "repository": {
-  "type": "git",
-  "url": "git+https://github.com/jmkcoder/gulp-msbuild.git"
-}
+    "type": "git",
+    "url": "git+https://github.com/jmkcoder/gulp-msbuild.git"
+  }
   "scripts": {
         "build": "tsc",
         "start": "ts-node src/index.ts",
