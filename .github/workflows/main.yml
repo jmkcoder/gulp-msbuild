@@ -1,12 +1,12 @@
 name: Build and Release
 
-on: 
+on:
   pull_request:
     types: [closed]
 
 permissions:
-  id-token: write
-  contents: write
+
+  contents: write  # This grants write permissions to the token
 
 jobs:
   build:
@@ -16,16 +16,12 @@ jobs:
     if: github.event.pull_request.merged == true
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: write
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        ref: main
 
     - name: Download build artifacts
       uses: actions/download-artifact@v4
@@ -83,20 +79,14 @@ jobs:
         asset_content_type: application/zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
+
+    - name: Set up .npmrc
+      if: env.skip == 'false'
+      run: bash .github/scripts/setup-npmrc.sh "${{ secrets.NPM_PUBLISH_KEY }}"
+
     - name: Create temp_package
       if: env.skip == 'false'
       run: bash .github/scripts/create-package.sh
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        registry-url: 'https://registry.npmjs.org/'
-        always-auth: true
-
-    - name: Who am I
-      run: npm whoami
 
     - name: Publish to NPM
       if: env.skip == 'false'
@@ -104,7 +94,7 @@ jobs:
       run: |
         cd temp_package
         npm publish --access public  # Publish with public access
-      continue-on-error: true # Continue even if this step fails
+      continue-on-error: true  # Continue even if this step fails
 
     - name: Upload tag as artifact
       if: failure()
@@ -113,12 +103,12 @@ jobs:
         name: failed-tag
         path: <(echo ${{ env.new_tag }})
 
-    - name: Explicitly fail
-      if: failure()
-      run: |
-        echo "Forcing failure after artifact upload"
+    - name: Explicitly fail 
+      if: failure() 
+      run: | 
+        echo "Forcing failure after artifact upload" 
         exit 1
-      
+
   rollback:
     runs-on: ubuntu-latest
     needs: release
@@ -136,4 +126,3 @@ jobs:
         bash .github/scripts/delete-release.sh "$tag" "${{ secrets.GITHUB_TOKEN }}" "${{ github.repository }}"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
