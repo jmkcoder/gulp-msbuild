@@ -97,7 +97,6 @@ jobs:
       run: |
         cd temp_package
         npm publish --access public  # Publish with public access
-      continue-on-error: true  # Continue even if this step fails
 
     - name: Upload tag as artifact
       if: failure()
@@ -123,11 +122,4 @@ jobs:
         bash .github/scripts/delete-release.sh "$tag" "${{ secrets.GITHUB_TOKEN }}" "${{ github.repository }}"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Delete NPM Package
-      run: |
-        tag=$(cat failed-tag)
-        npm deprecate $tag "Deprecation reason" || echo "Package not found"
-      env:
-        NPM_TOKEN: ${{ secrets.NPM_PUBLISH_KEY }}
 
