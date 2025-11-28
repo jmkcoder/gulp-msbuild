@@ -91,12 +91,16 @@ jobs:
         registry-url: 'https://registry.npmjs.org/'
         always-auth: true
 
+    - name: Who am I
+      run: npm whoami
+
     - name: Publish to NPM
       if: env.skip == 'false'
       id: publish_npm
       run: |
         cd temp_package
         npm publish --access public  # Publish with public access
+      continue-on-error: true # Continue even if this step fails
 
     - name: Upload tag as artifact
       if: failure()
@@ -104,6 +108,12 @@ jobs:
       with:
         name: failed-tag
         path: <(echo ${{ env.new_tag }})
+
+    - name: Explicitly fail
+      if: failure()
+      run: |
+        echo "Forcing failure after artifact upload"
+        exit 1
       
   rollback:
     runs-on: ubuntu-latest
