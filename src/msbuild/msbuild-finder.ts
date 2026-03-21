@@ -26,6 +26,15 @@ export class MSBuildFinder {
         if (isNaN(parsedNumber))
             throw new Error('version unknown');
 
+        // Pre-v12: MSBuild ships with the .NET Framework and does not require vswhere
+        if (parsedNumber < 12) {
+            const frameworkPath = this.concatPreV12(this.version);
+            if (fs.existsSync(frameworkPath)) {
+                return [frameworkPath, this.version];
+            }
+            return null;
+        }
+
         const vswherePath = path.join(process.env['ProgramFiles(x86)'] || '', 'Microsoft Visual Studio', 'Installer', 'vswhere.exe');
     
         if (!fs.existsSync(vswherePath)) {
@@ -36,8 +45,38 @@ export class MSBuildFinder {
         try {
             const installationsBuffer = execSync(`"${vswherePath}" -products * -requires Microsoft.Component.MSBuild -format json`);
             const installations = JSON.parse(installationsBuffer.toString());
-    
-            const installationPaths =  installations.map((installation: any) => this.concatCorrectPath(installation.installationPath)) as string[];
+
+            const major = (Number)(this.version.split('.')[0]);
+
+            if (major >= 16) {
+                // For v16+, match by the major part of installationVersion rather than
+                // relying on the installation path containing a particular substring.
+                // This correctly handles VS 18 (and any future VS version) regardless
+                // of the year/name used in the installation directory.
+                const matchingInstallation = installations.find((installation: any) => {
+                    const installMajor = parseInt(
+                        (installation.installationVersion || '').split('.')[0] || '0'
+                    );
+                    return installMajor === major;
+                });
+
+                if (!matchingInstallation) {
+                    return [null, this.version];
+                }
+
+                const msbuildPath = path.join(
+                    matchingInstallation.installationPath,
+                    'MSBuild', 'Current', 'Bin',
+                    this.getx64_dir(),
+                    'MSBuild.exe'
+                );
+                return [fs.existsSync(msbuildPath) ? msbuildPath : null, this.version];
+            }
+
+            // v12–v15: use path-based detection via vswhere installation paths
+            const installationPaths = installations.map(
+                (installation: any) => this.concatCorrectPath(installation.installationPath)
+            ) as string[];
             const installedPath = this.getInstalledVersion(installationPaths);
             
             return [
