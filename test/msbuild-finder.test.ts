@@ -132,7 +132,8 @@ describe('MSBuildFinder', () => {
         it('should find version using vswhere.exe', () => {
             const mockInstallations = [
                 {
-                    installationPath: 'C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community'
+                    installationPath: 'C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community',
+                    installationVersion: '15.0.0.0'
                 }
             ];
 
@@ -170,6 +171,154 @@ describe('MSBuildFinder', () => {
             const result = finder.findVersion();
 
             expect(result).toBeNull();
+        });
+
+        it('should find pre-v12 version without requiring vswhere.exe', () => {
+            mockOptions = new MSBuildOptions({
+                toolsVersion: '4.0',
+                windir: 'C:\\Windows' as any
+            });
+
+            // existsSync returns true only for the .NET Framework path (no vswhere)
+            mockFs.existsSync.mockImplementation((p: any) => {
+                return String(p).includes('Framework');
+            });
+
+            const finder = new MSBuildFinder(mockOptions);
+            const result = finder.findVersion();
+
+            // vswhere should NOT have been called for a pre-v12 version
+            expect(mockExecSync).not.toHaveBeenCalled();
+            expect(result).not.toBeNull();
+            expect(result![0]).toContain('MSBuild.exe');
+            expect(result![1]).toBe('4.0');
+        });
+
+        it('should return null when pre-v12 .NET Framework path does not exist', () => {
+            mockOptions = new MSBuildOptions({
+                toolsVersion: '4.0',
+                windir: 'C:\\Windows' as any
+            });
+
+            mockFs.existsSync.mockReturnValue(false);
+
+            const finder = new MSBuildFinder(mockOptions);
+            const result = finder.findVersion();
+
+            expect(mockExecSync).not.toHaveBeenCalled();
+            expect(result).toBeNull();
+        });
+
+        it('should find MSBuild 18.0 by matching installationVersion major number', () => {
+            mockOptions = new MSBuildOptions({
+                toolsVersion: '18.0',
+                windir: 'C:\\Windows' as any
+            });
+
+            // Simulate a VS 18 installation whose path may not contain '18' as a substring
+            const mockInstallations = [
+                {
+                    installationPath: 'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community',
+                    installationVersion: '17.8.0.0'
+                },
+                {
+                    installationPath: 'C:\\Program Files\\Microsoft Visual Studio\\2026\\Community',
+                    installationVersion: '18.0.0.0'
+                }
+            ];
+
+            // vswhere.exe itself must also "exist" to allow the lookup to proceed
+            mockFs.existsSync.mockImplementation((p: any) => {
+                const s = String(p);
+                return s.includes('vswhere') || s.includes('MSBuild');
+            });
+            mockExecSync.mockReturnValue(Buffer.from(JSON.stringify(mockInstallations)));
+
+            const finder = new MSBuildFinder(mockOptions);
+            const result = finder.findVersion();
+
+            expect(result).not.toBeNull();
+            expect(result![0]).toContain('2026');
+            expect(result![0]).toContain('MSBuild.exe');
+            expect(result![1]).toBe('18.0');
+        });
+
+        it('should return null path when no VS 18 installation is found', () => {
+            mockOptions = new MSBuildOptions({
+                toolsVersion: '18.0',
+                windir: 'C:\\Windows' as any
+            });
+
+            // Only VS 17 is installed
+            const mockInstallations = [
+                {
+                    installationPath: 'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community',
+                    installationVersion: '17.8.0.0'
+                }
+            ];
+
+            mockFs.existsSync.mockReturnValue(true);
+            mockExecSync.mockReturnValue(Buffer.from(JSON.stringify(mockInstallations)));
+
+            const finder = new MSBuildFinder(mockOptions);
+            const result = finder.findVersion();
+
+            expect(result).not.toBeNull();
+            expect(result![0]).toBeNull();
+        });
+
+        it('should find MSBuild 16.0 (VS 2019) by installationVersion', () => {
+            mockOptions = new MSBuildOptions({
+                toolsVersion: '16.0',
+                windir: 'C:\\Windows' as any
+            });
+
+            const mockInstallations = [
+                {
+                    installationPath: 'C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community',
+                    installationVersion: '16.11.5.0'
+                }
+            ];
+
+            mockFs.existsSync.mockImplementation((p: any) => {
+                const s = String(p);
+                return s.includes('vswhere') || s.includes('MSBuild');
+            });
+            mockExecSync.mockReturnValue(Buffer.from(JSON.stringify(mockInstallations)));
+
+            const finder = new MSBuildFinder(mockOptions);
+            const result = finder.findVersion();
+
+            expect(result).not.toBeNull();
+            expect(result![0]).toContain('2019');
+            expect(result![1]).toBe('16.0');
+        });
+
+        it('should find MSBuild 17.0 (VS 2022) by installationVersion', () => {
+            mockOptions = new MSBuildOptions({
+                toolsVersion: '17.0',
+                windir: 'C:\\Windows' as any
+            });
+
+            const mockInstallations = [
+                {
+                    installationPath: 'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community',
+                    installationVersion: '17.8.0.0'
+                }
+            ];
+
+            mockFs.existsSync.mockImplementation((p: any) => {
+                const s = String(p);
+                return s.includes('vswhere') || s.includes('MSBuild');
+            });
+            mockExecSync.mockReturnValue(Buffer.from(JSON.stringify(mockInstallations)));
+
+            const finder = new MSBuildFinder(mockOptions);
+            const result = finder.findVersion();
+
+            expect(result).not.toBeNull();
+            expect(result![0]).toContain('2022');
+            expect(result![1]).toBe('17.0');
         });
     });
 
@@ -418,7 +567,10 @@ describe('MSBuildFinder', () => {
 
         it('should return latest version when multiple versions are found', () => {
             const mockInstallations = [
-                { installationPath: 'C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community' }
+                {
+                    installationPath: 'C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community',
+                    installationVersion: '16.11.5.0'
+                }
             ];
 
             mockFs.existsSync.mockReturnValue(true);
@@ -438,7 +590,32 @@ describe('MSBuildFinder', () => {
                 expect(result[1]).toBeDefined();
             }
         });
+
+        it('should auto-detect MSBuild 18 when a VS 18 installation is present', () => {
+            const mockInstallations = [
+                {
+                    installationPath: 'C:\\Program Files\\Microsoft Visual Studio\\2026\\Community',
+                    installationVersion: '18.0.0.0'
+                }
+            ];
+
+            mockFs.existsSync.mockImplementation((p: any) => {
+                const s = String(p);
+                return s.includes('vswhere') || s.includes('MSBuild');
+            });
+            mockExecSync.mockReturnValue(Buffer.from(JSON.stringify(mockInstallations)));
+
+            mockOptions = new MSBuildOptions({
+                toolsVersion: 'auto' as any,
+                windir: 'C:\\Windows' as any
+            });
+
+            const finder = new MSBuildFinder(mockOptions);
+            const result = finder.getLatestAvailableVersion();
+
+            expect(result).not.toBeNull();
+            expect(result![1]).toBe('18.0');
+            expect(result![0]).toContain('MSBuild.exe');
+        });
     });
 });
-
-
